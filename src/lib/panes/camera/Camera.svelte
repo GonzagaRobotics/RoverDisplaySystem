@@ -1,81 +1,83 @@
 <script lang="ts">
+	import { getContext } from 'svelte';
 	import Pane from '../Pane.svelte';
+	import { Client } from '$lib/Client';
 
 	export let start: { x: number; y: number };
 	export let end: { x: number; y: number };
 
-	const config = { iceServers: [] };
-	const peerConnection = new RTCPeerConnection(config);
-	const signalingChannel = new WebSocket('ws://192.168.0.2:8090');
-
 	export function dispose() {
 		peerConnection.close();
+		signalingChannel.close();
 	}
 
-	const transceiver = peerConnection.addTransceiver('video', {
-		direction: 'recvonly'
-	});
+	const client = getContext<Client>('client');
 
-	transceiver.setCodecPreferences([
-		{ mimeType: 'video/AV1', clockRate: 90000 },
-		{ mimeType: 'video/AV1', clockRate: 90000, sdpFmtpLine: 'profile=1' },
-		{ mimeType: 'video/VP9', clockRate: 90000, sdpFmtpLine: 'profile-id=0' },
-		{ mimeType: 'video/VP9', clockRate: 90000, sdpFmtpLine: 'profile-id=1' },
-		{ mimeType: 'video/VP9', clockRate: 90000, sdpFmtpLine: 'profile-id=2' },
-		{ mimeType: 'video/VP9', clockRate: 90000, sdpFmtpLine: 'profile-id=3' },
-		{ mimeType: 'video/VP8', clockRate: 90000 }
-	]);
+	const peerConnection = new RTCPeerConnection({ iceServers: [] });
+	const signalingChannel = new WebSocket(`ws://${client.config.roverUrl}:8090`);
 
-	signalingChannel.onmessage = async (rawMessage) => {
-		const message = JSON.parse(rawMessage.data);
+	async function sendIceCandidate(event: { candidate: any }) {
+		if (event.candidate) {
+			console.log('Sending ICE candidate');
 
-		if (message.answer) {
-			console.log('Got answer');
-
-			const remoteDesc = new RTCSessionDescription(message.answer);
-			await peerConnection.setRemoteDescription(remoteDesc);
-		} else if (message.iceCandidate) {
-			try {
-				console.log('Adding ice candidate');
-				await peerConnection.addIceCandidate(message.iceCandidate);
-			} catch (e) {
-				console.error('Error adding received ice candidate', e);
-			}
+			signalingChannel.send(
+				JSON.stringify({
+					iceCandidate: event.candidate
+				})
+			);
 		}
-	};
+	}
 
-	async function connect() {
+	async function sendOffer() {
 		const offer = await peerConnection.createOffer();
 		await peerConnection.setLocalDescription(offer);
 
-		console.log('Sending offer');
-
-		signalingChannel.send(JSON.stringify({ offer: offer }));
+		signalingChannel.send(
+			JSON.stringify({
+				offer: offer
+			})
+		);
 	}
-
-	signalingChannel.onopen = () => {
-		connect();
-
-		peerConnection.addEventListener('icecandidate', (event) => {
-			if (event.candidate) {
-				const json = JSON.stringify({ iceCandidate: event.candidate });
-
-				console.log('Sending ice candidate');
-
-				signalingChannel.send(json);
-			}
-		});
-	};
 
 	let video: HTMLVideoElement;
 
 	$: if (video) {
 		peerConnection.ontrack = (event) => {
-			const stream = event.streams[0];
+			console.log('Got track');
 
-			console.log('Got remote track', stream);
+			video.srcObject = event.streams[0];
+		};
 
-			video.srcObject = stream;
+		signalingChannel.onmessage = async (rawMessage) => {
+			const message = JSON.parse(rawMessage.data);
+
+			if (message.iceCandidate) {
+				peerConnection.addIceCandidate(message.iceCandidate);
+				return;
+			}
+
+			const remoteDesc = new RTCSessionDescription(message.answer);
+			peerConnection.setRemoteDescription(remoteDesc);
+		};
+
+		peerConnection.onicecandidate = sendIceCandidate;
+
+		const transceiver = peerConnection.addTransceiver('video', {
+			direction: 'recvonly'
+		});
+
+		transceiver.setCodecPreferences([
+			{ mimeType: 'video/AV1', clockRate: 90000 },
+			{ mimeType: 'video/AV1', clockRate: 90000, sdpFmtpLine: 'profile=1' },
+			{ mimeType: 'video/VP9', clockRate: 90000, sdpFmtpLine: 'profile-id=0' },
+			{ mimeType: 'video/VP9', clockRate: 90000, sdpFmtpLine: 'profile-id=1' },
+			{ mimeType: 'video/VP9', clockRate: 90000, sdpFmtpLine: 'profile-id=2' },
+			{ mimeType: 'video/VP9', clockRate: 90000, sdpFmtpLine: 'profile-id=3' },
+			{ mimeType: 'video/VP8', clockRate: 90000 }
+		]);
+
+		signalingChannel.onopen = () => {
+			sendOffer();
 		};
 	}
 </script>

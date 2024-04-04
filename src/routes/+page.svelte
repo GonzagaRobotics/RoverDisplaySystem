@@ -12,7 +12,7 @@
 	setContext('client', client);
 	const clientState = client.state;
 
-	let selectedTabId = writable<string>('auto-nav');
+	let selectedTabId = writable<string>('drive');
 
 	let lastTickTimestamp: number | undefined;
 

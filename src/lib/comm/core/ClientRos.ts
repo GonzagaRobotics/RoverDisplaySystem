@@ -15,7 +15,7 @@ export class ClientRos {
 	}
 
 	connect() {
-		this.internal?.connect(this.config.roverUrl);
+		this.internal?.connect(`ws://${this.config.roverUrl}:9090`);
 	}
 
 	disconnect() {
