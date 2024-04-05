@@ -4,10 +4,7 @@
 
 	export let selectedTabId: Writable<string>;
 
-	const tabs = [
-		{ id: 'drive', name: 'Drive' },
-		{ id: 'auto-nav', name: 'Auto Nav' }
-	];
+	const tabs = [{ id: 'drive', name: 'Drive' }];
 </script>
 
 <TabGroup justify="justify-center">

@@ -5,7 +5,6 @@
 	import { setContext, onMount } from 'svelte';
 	import { writable } from 'svelte/store';
 	import Drive from '$lib/tabs/Drive.svelte';
-	import AutoNav from '$lib/tabs/AutoNav.svelte';
 	import { beforeNavigate } from '$app/navigation';
 
 	const client = new Client(getToastStore());
@@ -16,7 +15,7 @@
 
 	let lastTickTimestamp: number | undefined;
 
-	let tabComponent: Drive | AutoNav;
+	let tabComponent: Drive;
 
 	function tick(timestamp: number) {
 		if (lastTickTimestamp == undefined) {
@@ -55,8 +54,6 @@
 		{:else if $clientState.connectionStatus == ClientConnectionStatus.Connected}
 			{#if $selectedTabId == 'drive'}
 				<Drive bind:this={tabComponent} />
-			{:else if $selectedTabId == 'auto-nav'}
-				<AutoNav bind:this={tabComponent} />
 			{/if}
 		{/if}
 	</main>
