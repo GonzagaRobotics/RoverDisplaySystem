@@ -9,9 +9,9 @@
 
 	const client = getContext<Client>('client');
 
-	const shoulderTopic = new ClientRosTopic('/shoulder_input', 'std_msgs/Float32', client.ros);
-	const forearmTopic = new ClientRosTopic('/forearm_input', 'std_msgs/Float32', client.ros);
-	const wristTopic = new ClientRosTopic('/wrist_input', 'std_msgs/Float32', client.ros);
+	const shoulderTopic = new ClientRosTopic('/arm/shoulder', 'std_msgs/Float32', client.ros);
+	const forearmTopic = new ClientRosTopic('/arm/forearm', 'std_msgs/Float32', client.ros);
+	const wristTopic = new ClientRosTopic('/arm/wrist', 'std_msgs/Float32', client.ros);
 
 	const shoulderInput = client.inputSystem.registerAxisHandle({
 		id: 'shoulder',
