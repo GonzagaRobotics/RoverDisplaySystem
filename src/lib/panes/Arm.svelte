@@ -11,7 +11,10 @@
 
 	const shoulderTopic = new ClientRosTopic('/arm/shoulder', 'std_msgs/Float32', client.ros);
 	const forearmTopic = new ClientRosTopic('/arm/forearm', 'std_msgs/Float32', client.ros);
-	const wristTopic = new ClientRosTopic('/arm/wrist', 'std_msgs/Float32', client.ros);
+	const wristTopic = new ClientRosTopic('/arm/wrist', 'std_msgs/Int32', client.ros);
+	const minorXTopic = new ClientRosTopic('/arm/minor/x', 'std_msgs/Int32', client.ros);
+	const minorZTopic = new ClientRosTopic('/arm/minor/z', 'std_msgs/Int32', client.ros);
+	const minorGrabberTopic = new ClientRosTopic('/arm/minor/grab', 'std_msgs/Int32', client.ros);
 
 	const shoulderInput = client.inputSystem.registerAxisHandle({
 		id: 'shoulder',
@@ -42,6 +45,44 @@
 	});
 
 	$: wristTopic.publish({ data: ($wristInputForward ? 1 : 0) - ($wristInputBackward ? 1 : 0) });
+
+	const minorXInputForward = client.inputSystem.registerButtonHandle({
+		id: 'minorXForward',
+		button: 'Left'
+	});
+
+	const minorXInputBackward = client.inputSystem.registerButtonHandle({
+		id: 'minorXBackward',
+		button: 'Right'
+	});
+
+	$: minorXTopic.publish({ data: ($minorXInputForward ? 1 : 0) - ($minorXInputBackward ? 1 : 0) });
+
+	const minorZInputForward = client.inputSystem.registerButtonHandle({
+		id: 'minorZForward',
+		button: 'Up'
+	});
+
+	const minorZInputBackward = client.inputSystem.registerButtonHandle({
+		id: 'minorZBackward',
+		button: 'Down'
+	});
+
+	$: minorZTopic.publish({ data: ($minorZInputForward ? 1 : 0) - ($minorZInputBackward ? 1 : 0) });
+
+	const minorGrabberInputForward = client.inputSystem.registerButtonHandle({
+		id: 'minorGrabberForward',
+		button: 'X'
+	});
+
+	const minorGrabberInputBackward = client.inputSystem.registerButtonHandle({
+		id: 'minorGrabberBackward',
+		button: 'Y'
+	});
+
+	$: minorGrabberTopic.publish({
+		data: ($minorGrabberInputForward ? 1 : 0) - ($minorGrabberInputBackward ? 1 : 0)
+	});
 </script>
 
 <Pane {start} {end} name="Arm" containerClasses="flex justify-center items-center overflow-hidden">
