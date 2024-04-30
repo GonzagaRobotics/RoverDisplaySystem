@@ -1,63 +1,85 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
 	import Pane from '../Pane.svelte';
-	import type { Client } from '$lib/Client';
-	import { readFromRover } from '$lib/comm/ReadFromRover';
-	import { CameraMapping } from '$lib/comm/mappings/CameraImage';
+	import { Client } from '$lib/Client';
 
 	export let start: { x: number; y: number };
 	export let end: { x: number; y: number };
 
-	const client = getContext<Client>('client');
-
-	let cameraStore = readFromRover(client, CameraMapping, null, null);
-
-	let image: HTMLImageElement;
-
-	$: if (image) {
-		image.src = `data:image/jpeg;base64,${$cameraStore?.image.data}`;
+	export function dispose() {
+		peerConnection.close();
+		signalingChannel.close();
 	}
 
-	// let video: HTMLVideoElement;
-	// let peerConnection = new RTCPeerConnection();
+	const client = getContext<Client>('client');
 
-	// $: if (video) {
-	// 	peerConnection.ontrack = (event) => {
-	// 		console.log('Got remote track');
-	// 		video.srcObject = event.streams[0];
-	// 	};
-	// }
+	const peerConnection = new RTCPeerConnection({ iceServers: [] });
+	const signalingChannel = new WebSocket(`ws://192.168.0.2:8090`);
 
-	// async function connect() {
-	// 	const signalChannel = new WebSocket('ws://localhost:8080');
+	async function sendIceCandidate(event: { candidate: any }) {
+		if (event.candidate) {
+			console.log('Sending ICE candidate');
 
-	// 	signalChannel.onopen = async () => {
-	// 		console.log('Connected to signaling server');
+			signalingChannel.send(
+				JSON.stringify({
+					iceCandidate: event.candidate
+				})
+			);
+		}
+	}
 
-	// 		peerConnection.addTransceiver('video', { direction: 'recvonly' });
-	// 		const offer = await peerConnection.createOffer({
-	// 			offerToReceiveVideo: true
-	// 		});
+	async function sendOffer() {
+		const offer = await peerConnection.createOffer();
+		await peerConnection.setLocalDescription(offer);
 
-	// 		console.log('Created offer');
+		signalingChannel.send(
+			JSON.stringify({
+				offer: offer
+			})
+		);
+	}
 
-	// 		await peerConnection.setLocalDescription(offer);
+	let video: HTMLVideoElement;
 
-	// 		signalChannel.onmessage = async (event) => {
-	// 			const message = JSON.parse(event.data);
-	// 			console.log('Got answer');
+	$: if (video) {
+		peerConnection.ontrack = (event) => {
+			console.log('Got track');
 
-	// 			if (message.type === 'answer') {
-	// 				const remoteDesc = new RTCSessionDescription(message);
-	// 				await peerConnection.setRemoteDescription(remoteDesc);
-	// 			}
-	// 		};
+			video.srcObject = event.streams[0];
+		};
 
-	// 		signalChannel.send(JSON.stringify(peerConnection.localDescription));
-	// 	};
-	// }
+		signalingChannel.onmessage = async (rawMessage) => {
+			const message = JSON.parse(rawMessage.data);
 
-	// connect();
+			if (message.iceCandidate) {
+				peerConnection.addIceCandidate(message.iceCandidate);
+				return;
+			}
+
+			const remoteDesc = new RTCSessionDescription(message.answer);
+			peerConnection.setRemoteDescription(remoteDesc);
+		};
+
+		peerConnection.onicecandidate = sendIceCandidate;
+
+		const transceiver = peerConnection.addTransceiver('video', {
+			direction: 'recvonly'
+		});
+
+		transceiver.setCodecPreferences([
+			{ mimeType: 'video/AV1', clockRate: 90000 },
+			{ mimeType: 'video/AV1', clockRate: 90000, sdpFmtpLine: 'profile=1' },
+			{ mimeType: 'video/VP9', clockRate: 90000, sdpFmtpLine: 'profile-id=0' },
+			{ mimeType: 'video/VP9', clockRate: 90000, sdpFmtpLine: 'profile-id=1' },
+			{ mimeType: 'video/VP9', clockRate: 90000, sdpFmtpLine: 'profile-id=2' },
+			{ mimeType: 'video/VP9', clockRate: 90000, sdpFmtpLine: 'profile-id=3' },
+			{ mimeType: 'video/VP8', clockRate: 90000 }
+		]);
+
+		signalingChannel.onopen = () => {
+			sendOffer();
+		};
+	}
 </script>
 
 <!-- svelte-ignore a11y-media-has-caption -->
@@ -65,11 +87,9 @@
 	{start}
 	{end}
 	name="Camera"
-	loading={$cameraStore == null}
 	containerClasses="flex justify-center items-center overflow-hidden"
 >
 	<svelte:fragment slot="main">
-		<img bind:this={image} width="640" height="480" alt="" />
-		<!-- <video bind:this={video} playsInline muted autoPlay></video> -->
+		<video bind:this={video} playsInline muted autoPlay width="640" height="480"></video>
 	</svelte:fragment>
 </Pane>
