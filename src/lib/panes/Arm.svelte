@@ -9,12 +9,29 @@
 
 	const client = getContext<Client>('client');
 
+	const baseTopic = new ClientRosTopic('/arm/base', 'std_msgs/Float32', client.ros);
 	const shoulderTopic = new ClientRosTopic('/arm/shoulder', 'std_msgs/Float32', client.ros);
 	const forearmTopic = new ClientRosTopic('/arm/forearm', 'std_msgs/Float32', client.ros);
 	const wristTopic = new ClientRosTopic('/arm/wrist', 'std_msgs/Int32', client.ros);
 	const minorXTopic = new ClientRosTopic('/arm/minor/x', 'std_msgs/Int32', client.ros);
 	const minorZTopic = new ClientRosTopic('/arm/minor/z', 'std_msgs/Int32', client.ros);
 	const minorGrabberTopic = new ClientRosTopic('/arm/minor/grab', 'std_msgs/Int32', client.ros);
+
+	const baseInputLeft = client.inputSystem.registerAxisHandle({
+		id: 'baseLeft',
+		axis: 'LT',
+		curve: 1.5,
+		deadzone: 0.1
+	});
+
+	const baseInputRight = client.inputSystem.registerAxisHandle({
+		id: 'baseRight',
+		axis: 'RT',
+		curve: 1.5,
+		deadzone: 0.1
+	});
+
+	$: baseTopic.publish({ data: $baseInputLeft - $baseInputRight });
 
 	const shoulderInput = client.inputSystem.registerAxisHandle({
 		id: 'shoulder',
@@ -32,7 +49,7 @@
 		deadzone: 0.1
 	});
 
-	forearmInput.subscribe((value) => forearmTopic.publish({ data: value }));
+	forearmInput.subscribe((value) => forearmTopic.publish({ data: -value }));
 
 	const wristInputForward = client.inputSystem.registerButtonHandle({
 		id: 'wristForward',
